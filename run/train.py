@@ -96,9 +96,9 @@ def load_data(config, data_sign="conll"):
     else:
         raise ValueError(">>> DO NOT IMPLEMENT GAP DATASET >>>")  
 
-    train_dataloader = dataloader.get_dataloader("train")
-    dev_dataloader = dataloader.get_dataloader("dev")
-    test_dataloader = dataloader.get_dataloader("test")
+    train_dataloader = dataloader.get_dataloader("train", use_cache=True)
+    dev_dataloader = dataloader.get_dataloader("dev", use_cache=True)
+    test_dataloader = dataloader.get_dataloader("test", use_cache=True)
 
     return train_dataloader, dev_dataloader, test_dataloader
 
@@ -114,7 +114,8 @@ def load_model(config):
         print("please notice that the device is :")
         print(device)
         print("-*-"*10)
-        n_gpu = config.n_gpu 
+        n_gpu = config.n_gpu
+    print("device", device)
     bert_config = BertConfig.from_json_file(os.path.join(config.bert_model, "config.json"))
     model = CorefQA(bert_config, config, device)
     
@@ -235,37 +236,37 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
 
             # mention linking
             # print(len(set(topk_span_starts.tolist()) & set(span_starts.tolist())), span_starts.shape[0])
-            mention_num = topk_span_starts.shape[0]
-            chunk_num = mention_num // config.mention_chunk_size
-            for chunk_idx in range(chunk_num):
-                chunk_start = config.mention_chunk_size * chunk_idx
-                chunk_end = chunk_start + config.mention_chunk_size
-                link_loss = model.batch_qa_linking(
-                    sentence_map=sentence_map,
-                    window_input_ids=window_input_ids,
-                    window_masked_ids=window_masked_ids,
-                    token_type_ids=token_type_ids,
-                    attention_mask=attention_mask,
-                    candidate_starts=candidate_starts,
-                    candidate_ends=candidate_ends,
-                    candidate_labels=candidate_labels,
-                    candidate_mention_scores=candidate_mention_scores,
-                    topk_span_starts=topk_span_starts[chunk_start: chunk_end],
-                    topk_span_ends=topk_span_ends[chunk_start: chunk_end],
-                    topk_span_labels=topk_span_labels[chunk_start: chunk_end],
-                    topk_mention_scores=topk_mention_scores[chunk_start: chunk_end],
-                    origin_k=mention_num,
-                    gold_mention_span=gold_mention_span,
-                    recompute_mention_scores=True
-                )
-                link_loss /= chunk_num
-                link_loss /= config.gradient_accumulation_steps
-                if config.mention_chunk_size:
-                    backward_loss(optimizer=optimizer, loss=link_loss, fp16=config.fp16, retain_graph=False)
-                else:
-                    loss += link_loss
-                item_loss += link_loss.item()
-                tr_loss += link_loss.item()
+            # mention_num = topk_span_starts.shape[0]
+            # chunk_num = mention_num // config.mention_chunk_size
+            # for chunk_idx in range(chunk_num):
+            #     chunk_start = config.mention_chunk_size * chunk_idx
+            #     chunk_end = chunk_start + config.mention_chunk_size
+            #     link_loss = model.batch_qa_linking(
+            #         sentence_map=sentence_map,
+            #         window_input_ids=window_input_ids,
+            #         window_masked_ids=window_masked_ids,
+            #         token_type_ids=token_type_ids,
+            #         attention_mask=attention_mask,
+            #         candidate_starts=candidate_starts,
+            #         candidate_ends=candidate_ends,
+            #         candidate_labels=candidate_labels,
+            #         candidate_mention_scores=candidate_mention_scores,
+            #         topk_span_starts=topk_span_starts[chunk_start: chunk_end],
+            #         topk_span_ends=topk_span_ends[chunk_start: chunk_end],
+            #         topk_span_labels=topk_span_labels[chunk_start: chunk_end],
+            #         topk_mention_scores=topk_mention_scores[chunk_start: chunk_end],
+            #         origin_k=mention_num,
+            #         gold_mention_span=gold_mention_span,
+            #         recompute_mention_scores=True
+            #     )
+            #     link_loss /= chunk_num
+            #     link_loss /= config.gradient_accumulation_steps
+            #     if config.mention_chunk_size:
+            #         backward_loss(optimizer=optimizer, loss=link_loss, fp16=config.fp16, retain_graph=False)
+            #     else:
+            #         loss += link_loss
+            #     item_loss += link_loss.item()
+            #     tr_loss += link_loss.item()
             epoch_loss += item_loss
 
             nb_tr_examples += window_input_ids.size(0)
