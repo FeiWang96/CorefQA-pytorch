@@ -20,7 +20,7 @@ from data_loader.conll_data_processor import prepare_conll_dataset, CoNLLCorefRe
 
 class CoNLLDataset(Dataset):
     def __init__(self, features: List[CoNLLCorefResolution]):
-        self.features = features
+        self.features = features[:3]
 
     def __len__(self):
         return len(self.features)

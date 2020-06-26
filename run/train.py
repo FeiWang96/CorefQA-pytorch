@@ -197,8 +197,8 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
         #     torch.distributed.barrier()
 
         # iter_bar = tqdm(train_dataloader, desc="-Iter", disable=config.params.local_rank not in [-1, 0])
-        iter_bar = tqdm(train_dataloader, desc="-Iter")
-        for step, batch in enumerate(iter_bar):
+        # iter_bar = tqdm(train_dataloader, desc="-Iter")
+        for step, batch in enumerate(train_dataloader):
             ##if n_gpu == 1:
             ##    batch = tuple(t.to(device) for t in batch)
             sentence_map,subtoken_map, window_input_ids, window_masked_ids, gold_mention_span, token_type_ids, attention_mask, \
@@ -220,24 +220,28 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
             # loss = model(doc_idx=doc_idx, sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids, \
             #     gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
 
-            # loss = 0.0
-            # (proposal_loss, sentence_map, window_input_ids, window_masked_ids,
-            #  candidate_starts, candidate_ends, candidate_labels, candidate_mention_scores,
-            #  topk_span_starts, topk_span_ends, topk_span_labels, topk_mention_scores) = model(sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids,
-            #                                                                                   gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
-            # proposal_loss /= config.gradient_accumulation_steps
-            # tr_loss += proposal_loss.item()
-            # if config.mention_chunk_size:
-            #     backward_loss(optimizer=optimizer, fp16=config.fp16, loss=proposal_loss)
-            # else:
-            #     loss += proposal_loss
+            loss = 0.0
+            (proposal_loss, sentence_map, window_input_ids, window_masked_ids,
+             candidate_starts, candidate_ends, candidate_labels, candidate_mention_scores,
+             topk_span_starts, topk_span_ends, topk_span_labels, topk_mention_scores) = model(sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids,
+                                                                                              gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
+            proposal_loss /= config.gradient_accumulation_steps
+            tr_loss += proposal_loss.item()
+            if config.mention_chunk_size:
+                backward_loss(optimizer=optimizer, fp16=config.fp16, loss=proposal_loss)
+            else:
+                loss += proposal_loss
+            print("done", step)
+            print("done", step)
+            print("done", step)
             item_loss = 0
-            # item_loss += proposal_loss.item()
+            item_loss += proposal_loss.item()
             # tr_loss += proposal_loss.item()
 
             # mention linking
             # print(len(set(topk_span_starts.tolist()) & set(span_starts.tolist())), span_starts.shape[0])
-            # mention_num = topk_span_starts.shape[0]
+            # mention_num = topk_span
+            #             # print(len(set(topk_span_starts.shape[0]
             # chunk_num = mention_num // config.mention_chunk_size
             # for chunk_idx in range(chunk_num):
             #     chunk_start = config.mention_chunk_size * chunk_idx
@@ -316,13 +320,13 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
                             for key in sorted(test_summary_dict_when_dev_best.keys()):
                                 writer.write("Test: %s = %s\n" % (key, str(test_summary_dict_when_dev_best[key])))
                             writer.write("TEST Average (conll) F1 : %s" % (str(test_average_f1_when_dev_best)))
-            iter_bar.update()
-            # current_lr = sheduler.get_lr()[0]
-            iter_bar.set_postfix({
-                'loss_cur': f'{item_loss:.3f}',
-                'loss_epoch:': f'{epoch_loss / (step+1):.3f}'
-            })
-        iter_bar.close()
+        #     iter_bar.update()
+        #     # current_lr = sheduler.get_lr()[0]
+        #     iter_bar.set_postfix({
+        #         'loss_cur': f'{item_loss:.3f}',
+        #         'loss_epoch:': f'{epoch_loss / (step+1):.3f}'
+        #     })
+        # iter_bar.close()
 
 
 def evaluate(config, model_object, device, dataloader, n_gpu, eval_sign="dev", official_stdout=False):
