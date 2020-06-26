@@ -102,7 +102,6 @@ def load_data(config, data_sign="conll"):
 
     return train_dataloader, dev_dataloader, test_dataloader
 
-
 def load_model(config):
 
     if config.tpu:
@@ -116,6 +115,8 @@ def load_model(config):
         print("-*-"*10)
         n_gpu = config.n_gpu
     print("device", device)
+
+
     bert_config = BertConfig.from_json_file(os.path.join(config.bert_model, "config.json"))
     model = CorefQA(bert_config, config, device)
     
@@ -143,10 +144,10 @@ def load_model(config):
         model, optimizer = amp.initialize(model, optimizer, opt_level=config.fp16_opt_level)
 
     # Distributed training (should be after apex fp16 initialization)
-    if config.local_rank != -1:
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[config.local_rank], output_device=config.local_rank, find_unused_parameters=True
-        )
+    # if config.local_rank != -1:
+    #     model = torch.nn.parallel.DistributedDataParallel(
+    #         model, device_ids=[config.local_rank], output_device=config.local_rank, find_unused_parameters=True
+    #     )
 
     sheduler = None
     return model, optimizer, sheduler, device, n_gpu
@@ -219,20 +220,20 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
             # loss = model(doc_idx=doc_idx, sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids, \
             #     gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
 
-            loss = 0.0
-            (proposal_loss, sentence_map, window_input_ids, window_masked_ids,
-             candidate_starts, candidate_ends, candidate_labels, candidate_mention_scores,
-             topk_span_starts, topk_span_ends, topk_span_labels, topk_mention_scores) = model(sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids,
-                                                                                              gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
-            proposal_loss /= config.gradient_accumulation_steps
-            tr_loss += proposal_loss.item()
-            if config.mention_chunk_size:
-                backward_loss(optimizer=optimizer, fp16=config.fp16, loss=proposal_loss)
-            else:
-                loss += proposal_loss
+            # loss = 0.0
+            # (proposal_loss, sentence_map, window_input_ids, window_masked_ids,
+            #  candidate_starts, candidate_ends, candidate_labels, candidate_mention_scores,
+            #  topk_span_starts, topk_span_ends, topk_span_labels, topk_mention_scores) = model(sentence_map=sentence_map, subtoken_map=subtoken_map, window_input_ids=window_input_ids, window_masked_ids=window_masked_ids,
+            #                                                                                   gold_mention_span=gold_mention_span, token_type_ids=token_type_ids, attention_mask=attention_mask, span_starts=span_starts, span_ends=span_ends, cluster_ids=cluster_ids)
+            # proposal_loss /= config.gradient_accumulation_steps
+            # tr_loss += proposal_loss.item()
+            # if config.mention_chunk_size:
+            #     backward_loss(optimizer=optimizer, fp16=config.fp16, loss=proposal_loss)
+            # else:
+            #     loss += proposal_loss
             item_loss = 0
-            item_loss += proposal_loss.item()
-            tr_loss += proposal_loss.item()
+            # item_loss += proposal_loss.item()
+            # tr_loss += proposal_loss.item()
 
             # mention linking
             # print(len(set(topk_span_starts.tolist()) & set(span_starts.tolist())), span_starts.shape[0])
@@ -267,7 +268,7 @@ def train(model: CorefQA, optimizer, sheduler,  train_dataloader, dev_dataloader
             #         loss += link_loss
             #     item_loss += link_loss.item()
             #     tr_loss += link_loss.item()
-            epoch_loss += item_loss
+            # epoch_loss += item_loss
 
             nb_tr_examples += window_input_ids.size(0)
             nb_tr_steps += 1
